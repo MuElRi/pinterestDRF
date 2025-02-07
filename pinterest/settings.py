@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 
+from django.conf.global_settings import AUTHENTICATION_BACKENDS
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,8 +27,9 @@ SECRET_KEY = 'django-insecure-o$6&9lvbi9c(09phy$r+sp4n5al$b9_&*qi$25$-qmdon)lreo
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['mysite.com', 'localhost', '127.0.0.1']
 
+SITE_URL = 'http://localhost:8000'
 
 # Application definition
 
@@ -40,59 +43,60 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'image.apps.ImageConfig',
+    'user.apps.UserConfig',
+    'action.apps.ActionConfig',
+    'djoser',
+    'django_extensions',
+    'taggit',
+    'django_filters',
 
 ]
 
+AUTH_USER_MODEL = 'user.CustomUser'
+
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 16,
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ]
+}
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+DJOSER = {
+    'PASSWORD_RESET_CONFIRM_URL': '#/password/reset/confirm/{uid}/{token}',
+    'USERNAME_RESET_CONFIRM_URL': '#/username/reset/confirm/{uid}/{token}',
+    'ACTIVATION_URL': '#/activate/{uid}/{token}',
+    'SEND_ACTIVATION_EMAIL': True,
+    'SERIALIZERS': {
+        'user_create': 'user.serializers.CustomUserCreateSerializer',
+    }
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=35),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
-    "UPDATE_LAST_LOGIN": False,
-
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-    "VERIFYING_KEY": "",
-    "AUDIENCE": None,
-    "ISSUER": None,
-    "JSON_ENCODER": None,
-    "JWK_URL": None,
-    "LEEWAY": 0,
-
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "user_id",
-    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
-
-    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
-    "TOKEN_TYPE_CLAIM": "token_type",
-    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
-
-    "JTI_CLAIM": "jti",
-
-    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
-    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
-    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
-
-    "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
-    "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer",
-    "TOKEN_VERIFY_SERIALIZER": "rest_framework_simplejwt.serializers.TokenVerifySerializer",
-    "TOKEN_BLACKLIST_SERIALIZER": "rest_framework_simplejwt.serializers.TokenBlacklistSerializer",
-    "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
-    "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
 }
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
+        'LOCATION': '127.0.0.1:11211',
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -102,6 +106,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'social_django.middleware.SocialAuthExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'pinterest.urls'
@@ -125,9 +130,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'pinterest.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -135,9 +137,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -154,10 +153,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -167,16 +162,46 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
 STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
+
+
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'eldar00319g@gmail.com'
+EMAIL_HOST_PASSWORD = 'bjel hudd yxge fvyd'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672/'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+CELERY_TASK_ROUTES = {
+    'image.tasks.generate_thumbnail': {'queue': 'queue1'},
+    'image.tasks.generate_image_tags': {'queue': 'queue1'},
+    'image.tasks.post_image': {'queue': 'queue2'},
+    'image.tasks.send_notification_email': {'queue': 'queue2'},
+}
+CELERY_RESULT_EXPIRES = 7200
+
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_DB = 1
+
+
+# https://accounts.google.com/o/oauth2/v2/auth?client_id=450086810881-na3qicdtjk5oc2nknr3ffpfscb6ii7b4.apps.googleusercontent.com&redirect_uri=https://mysite.com:8000/auth/complete/google-oauth2/&response_type=token&scope=email profile
+
+
+# https://accounts.google.com/o/oauth2/v2/auth?client_id=450086810881-na3qicdtjk5oc2nknr3ffpfscb6ii7b4.apps.googleusercontent.com&redirect_uri=http://127.0.0.1:8000/auth/complete/google-oauth2/&response_type=token&scope=email profile
+
+#ya29.a0AXeO80ShsAbSkY4aB6C_xbXBlbtcb1QaHLzKi8x_Qv8VGaI-FDR3kotuHnHR-4HJnbI7X6lBXSc62WU7zb0N_87_YTmfvhVzWm5DE9tV17suZce2bayh3OQOt_5fWOiM8QwwPB_puhi0ac4U1zTJ8t6A0VjA0owkxx8aCgYKAc4SARASFQHGX2MiRe0AtS6TgV6xpzjmGSULrA0170
+
+# curl -k --request POST --url https://mysite.com:8000/auth/google/ --header "Content-Type: application/json" --data "{\"access_token\": \"ya29.a0AXeO80SJrhio9rqUAl2iUQYljjiTSqvAwI4jEkHNX5Dm6Z5A0TySsJRBnoX_Fm7uLfeBe3JgV3Npobd1b2MxBu5ydtrr5dzcXg2Q6MtECURcKk8-xnK0rcJZCBwj_wATOLE4EUSLQL6f-57LgJuot-G3RYgJxh7m_yVNa_yMGAaCgYKAVkSARASFQHGX2MiRdc1EoXLdddvWmxE37X1mg0177\"}"

@@ -14,15 +14,37 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from os.path import basename
+
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework_simplejwt import views as jwt_views
+from rest_framework.routers import DefaultRouter
+from rest_framework_nested.routers import NestedSimpleRouter
+
+from action.views import ActionView
+from image.views import CommentViewSet, ImageViewSet
+from user.views import UserViewSet
+from user.endpoints.google import GoogleLoginAPIView
+
+# Основной роутер для изображений
+router = DefaultRouter()
+router.register(r'images', ImageViewSet)
+router.register(r'users', UserViewSet)
+
+# Вложенный роутер для комментариев
+nested_router = NestedSimpleRouter(router, r'images', lookup='image')
+nested_router.register(r'comments', CommentViewSet, basename='image-comments')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('image.urls')),
-    path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/', include('djoser.urls')),
+    path('auth/', include('djoser.urls.jwt')),
+    path('auth/google/', GoogleLoginAPIView.as_view(), name='google_login'),
+    path('drf-auth/', include('rest_framework.urls')),
+    path('action/', ActionView.as_view(), name='action'),
+
+    *router.urls,
+    *nested_router.urls,
 ]
 
 
