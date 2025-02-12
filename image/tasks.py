@@ -3,6 +3,7 @@ import logging
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from celery import shared_task, signals
+from django.core.cache import cache
 from django.core.mail import send_mail
 from PIL import Image as PiLImage
 from user.models import CustomUser
@@ -68,6 +69,18 @@ def generate_image_tags(self, image_id, image_url):
     for tag in tags:
         image.tags.add(tag)
     return tags
+
+@shared_task
+def sync_views_to_db():
+    """Сохраняет просмотры из Redis в БД"""
+    keys = cache.keys("image:*:views")
+    for key in keys:
+        image_id = key.split(":")[1]
+        views = int(cache.get(key))
+        image = Image.objects.get(id=image_id)
+        image.views = views
+        image.save()
+    return "Синхронизация завершена"
 
 
 @signals.task_failure.connect

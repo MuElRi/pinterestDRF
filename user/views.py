@@ -120,18 +120,15 @@ class UserViewSet(ListModelMixin,
 
     def _follow_user(self, user, target_user):
         """Создает подписку, если ее нет"""
-        _, created = Follow.objects.get_or_create(user_from=user, user_to=target_user)
+        Follow.objects.get_or_create(user_from=user, user_to=target_user)
         create_action(user, "followed", target_user)
-        if created:
-            return Response({'detail': 'Подписка оформлена'}, status=status.HTTP_201_CREATED)
-        return Response({'detail': 'Вы уже подписаны'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': 'Подписка оформлена'}, status=status.HTTP_201_CREATED)
 
     def _unfollow_user(self, user, target_user):
         """Удаляет подписку, если она существует."""
-        deleted, _ = Follow.objects.filter(user_from=user, user_to=target_user).delete()
-        if deleted:
-            return Response({"detail": "Подписка удалена."}, status=status.HTTP_204_NO_CONTENT)
-        return Response({"detail": "Вы не были подписаны."}, status=status.HTTP_400_BAD_REQUEST)
+        Follow.objects.filter(user_from=user, user_to=target_user).delete()
+        return Response({"detail": "Подписка удалена."}, status=status.HTTP_204_NO_CONTENT)
+
 
     def _is_mutual_follow(self, user1, user2):
         """Проверяет, подписаны ли пользователи друг на друга"""

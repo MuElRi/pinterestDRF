@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 
+from celery.bin.worker import CELERY_BEAT
 from django.conf.global_settings import AUTHENTICATION_BACKENDS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -49,6 +50,8 @@ INSTALLED_APPS = [
     'django_extensions',
     'taggit',
     'django_filters',
+    'django_celery_beat',
+    'drf_yasg',
 
 ]
 
@@ -93,14 +96,26 @@ SIMPLE_JWT = {
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
-        'LOCATION': '127.0.0.1:11211',
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'TIMEOUT': 7200,
+        }
     }
 }
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+SESSION_COOKIE_AGE = 2 * 60 * 60  # 2 часа
+FAVORITE_SESSION_ID = 'favorite_images'
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'image.middleware.CustomSessionMiddleware', #кастомный middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -185,23 +200,29 @@ CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672/'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 CELERY_TASK_ROUTES = {
-    'image.tasks.generate_thumbnail': {'queue': 'queue1'},
-    'image.tasks.generate_image_tags': {'queue': 'queue1'},
-    'image.tasks.post_image': {'queue': 'queue2'},
-    'image.tasks.send_notification_email': {'queue': 'queue2'},
+    'image.tasks.generate_thumbnail': {'queue': 'image_queue'},
+    'image.tasks.generate_image_tags': {'queue': 'image_queue'},
+    'image.tasks.post_image': {'queue': 'post_queue'},
+    'image.tasks.send_notification_email': {'queue': 'post_queue'},
+    'image.tasks.sync_views_to_db': {'queue': 'periodic_queue'},
+    'action.tasks.delete_old_action': {'queue': 'periodic_queue'}
 }
+
 CELERY_RESULT_EXPIRES = 7200
 
-REDIS_HOST = 'localhost'
-REDIS_PORT = 6379
-REDIS_DB = 1
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'sync-views': {
+        'task': 'image.tasks.sync_views_to_db',
+        'schedule': 7600.0,
+    },
+    'delete-action': {
+        'task': 'action.tasks.delete_old_action',
+        'schedule': crontab(hour=0, minute=0), #Каждую полоночь
+    },
+}
 
 
-# https://accounts.google.com/o/oauth2/v2/auth?client_id=450086810881-na3qicdtjk5oc2nknr3ffpfscb6ii7b4.apps.googleusercontent.com&redirect_uri=https://mysite.com:8000/auth/complete/google-oauth2/&response_type=token&scope=email profile
 
 
-# https://accounts.google.com/o/oauth2/v2/auth?client_id=450086810881-na3qicdtjk5oc2nknr3ffpfscb6ii7b4.apps.googleusercontent.com&redirect_uri=http://127.0.0.1:8000/auth/complete/google-oauth2/&response_type=token&scope=email profile
-
-#ya29.a0AXeO80ShsAbSkY4aB6C_xbXBlbtcb1QaHLzKi8x_Qv8VGaI-FDR3kotuHnHR-4HJnbI7X6lBXSc62WU7zb0N_87_YTmfvhVzWm5DE9tV17suZce2bayh3OQOt_5fWOiM8QwwPB_puhi0ac4U1zTJ8t6A0VjA0owkxx8aCgYKAc4SARASFQHGX2MiRe0AtS6TgV6xpzjmGSULrA0170
-
-# curl -k --request POST --url https://mysite.com:8000/auth/google/ --header "Content-Type: application/json" --data "{\"access_token\": \"ya29.a0AXeO80SJrhio9rqUAl2iUQYljjiTSqvAwI4jEkHNX5Dm6Z5A0TySsJRBnoX_Fm7uLfeBe3JgV3Npobd1b2MxBu5ydtrr5dzcXg2Q6MtECURcKk8-xnK0rcJZCBwj_wATOLE4EUSLQL6f-57LgJuot-G3RYgJxh7m_yVNa_yMGAaCgYKAVkSARASFQHGX2MiRdc1EoXLdddvWmxE37X1mg0177\"}"

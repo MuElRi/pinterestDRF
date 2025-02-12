@@ -1,14 +1,19 @@
+from datetime import timedelta
+
+from django.core.cache import cache
 from django.db.models import When, Case, Value, IntegerField
 from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from action.utils import create_action
 from user.serializers import CustomUserSerializer
 from .count_views import CountViewsImage
+from .favourites import FavoriteSessionManager
 from .permissions  import IsOwnerOrReadOnly
 from .models import *
 from .serializers import *
@@ -42,7 +47,6 @@ class ImageViewSet(viewsets.ModelViewSet):
                                          })
         return Response(serializer.data)
 
-
     def perform_create(self, serializer):
         instance = serializer.save(owner=self.request.user)
         create_action(self.request.user, 'posted', target=instance)
@@ -50,6 +54,19 @@ class ImageViewSet(viewsets.ModelViewSet):
         generate_thumbnail.delay(instance.image.name)
         if not instance.tags.exists():
             generate_image_tags.delay(instance.id, instance.image.name)
+
+    @action(methods=['get'],
+            detail=False)
+    def most_popular(self, request):
+        """Самые популярные изображения выложенные за последние 2 недели"""
+        two_week_ago = now() - timedelta(weeks=2)
+        images = cache.get('most_popular_images')
+        if not images:
+            images = Image.objects.filter(created__gt=two_week_ago
+                                     ).order_by('-views')[:20]
+            cache.set('most_popular_images', images, 15*60)
+        serializers = ImageSerializer(images, many=True, context={'request': request})
+        return Response(serializers.data)
 
     @action(methods=['post', 'delete'],
             detail=True,
@@ -85,6 +102,31 @@ class ImageViewSet(viewsets.ModelViewSet):
 
         serializers = CustomUserSerializer(users_like, many=True, context={'request': request})
         return Response(serializers.data)
+
+    @action(methods=['get'],
+            detail=False)
+    def favorites(self, request):
+        """Список избранных изображений"""
+        session_manager = FavoriteSessionManager(request)
+        favorites = set(session_manager.get_favorites())
+
+        images = Image.objects.filter(id__in=favorites)
+        serializers =  ImageSerializer(images, many=True, context={'request': request})
+
+        return Response(serializers.data)
+
+    @action(methods=['post', 'delete'],
+            detail=True,
+            permission_classes = [AllowAny])
+    def favorite(self, request, pk):
+        """Добавление или удаление изображения из списка избранных"""
+        session_manager = FavoriteSessionManager(request)
+        if request.method == 'POST':
+            session_manager.add_favorite(pk)
+            return Response({'detail': 'изображение добавлено'})
+        else:
+            session_manager.remove_favorite(pk)
+            return Response({'detail': 'изображение удалено'})
 
 
 class CommentViewSet(mixins.CreateModelMixin,

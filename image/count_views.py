@@ -1,19 +1,24 @@
-import redis
-from django.conf import settings
+from django.core.cache import cache
 
-r = redis.Redis(host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB)
+from image.admin import ImageAdmin
+from image.models import Image
+
 
 class CountViewsImage:
 
-    def  get_redis_key(self, image_id):
+    def get_cache_key(self, image_id):
         return f"image:{image_id}:views"
 
     def incr(self, image_id):
-        redis_key = self.get_redis_key(image_id)
-        return r.incr(redis_key)
+        cache_key = self.get_cache_key(image_id)
+        if not cache.get(cache_key):
+            image = Image.objects.get(id=image_id)
+            cache.set(cache_key, image.views)
+        return cache.incr(cache_key)
 
     def get(self, image_id):
-        redis_key = self.get_redis_key(image_id)
-        return r.get(redis_key) or 0
+        cache_key = self.get_cache_key(image_id)
+        if not cache.get(cache_key):
+            image = Image.objects.get(id=image_id)
+            cache.set(cache_key, image.views)
+        return cache.get(cache_key)

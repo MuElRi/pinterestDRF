@@ -33,9 +33,9 @@ class CustomDetailUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = (
             'id', 'username', 'email',
-            'date_of_birth', 'photo', 'images',
+            'date_of_birth', 'photo',
             'is_open_liked_images', 'is_following',
-            'images_views'
+            'images_views', 'images',
         )
 
         read_only_fields = ('email', 'username')

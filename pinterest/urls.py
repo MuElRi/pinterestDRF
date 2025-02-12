@@ -14,8 +14,6 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from os.path import basename
-
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -25,8 +23,9 @@ from action.views import ActionView
 from image.views import CommentViewSet, ImageViewSet
 from user.views import UserViewSet
 from user.endpoints.google import GoogleLoginAPIView
+from .yasg import urlpatterns as doc_urls
 
-# Основной роутер для изображений
+# Основной роутер для изображений и пользователей
 router = DefaultRouter()
 router.register(r'images', ImageViewSet)
 router.register(r'users', UserViewSet)
@@ -47,6 +46,7 @@ urlpatterns = [
     *nested_router.urls,
 ]
 
+urlpatterns += doc_urls
 
 from django.conf import settings
 from django.conf.urls.static import static

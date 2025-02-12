@@ -16,3 +16,8 @@ class ImageAdmin(admin.ModelAdmin):
                     'created')
     prepopulated_fields = {'slug': ('title',)}
     inlines = (CommentInLine,)
+
+
+@admin.register(Favorite)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'images')

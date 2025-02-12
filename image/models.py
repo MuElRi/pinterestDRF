@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.text import slugify
 from django.urls import reverse
 from taggit.managers import TaggableManager
+from user.models import CustomUser
 
 
 class Category(models.Model):
@@ -34,8 +35,10 @@ class Image(models.Model):
     users_like = models.ManyToManyField(settings.AUTH_USER_MODEL,
                              related_name='liked_images',
                              blank=True)
+    views = models.PositiveIntegerField(default=0)
     total_likes = models.PositiveIntegerField(default=0)
     tags = TaggableManager(blank=True)
+
 
     class Meta:
         indexes = [models.Index(fields=['-created'])]
@@ -86,3 +89,25 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'Comment by {self.owner.username} on {self.image.title}]'
+
+
+class FavoriteDatabaseManager:
+    @staticmethod
+    def save_to_db(user, favorite_images):
+        """Сохраняет избранные изображения в БД для авторизованного пользователя."""
+        favorite, created = Favorite.objects.get_or_create(user=user)
+        favorite.images = list(favorite_images)
+        favorite.save()
+
+    @staticmethod
+    def load_from_db(user):
+        """Загружает избранные изображения из БД."""
+        try:
+            return list(Favorite.objects.get(user=user).images)
+        except Favorite.DoesNotExist:
+            return list()
+
+
+class Favorite(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    images = models.JSONField(default=list)

@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from taggit.models import Tag
 from taggit.serializers import TagListSerializerField
+
+from .favourites import FavoriteSessionManager
 from .models import Image, Comment, Category
 from user.common_serializers import CustomUserSerializer
 
@@ -61,11 +63,14 @@ class ImageSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ImageDetailSerializer(serializers.ModelSerializer):
-    views = serializers.SerializerMethodField()
+    views = serializers.SerializerMethodField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     owner = CustomUserSerializer(read_only=True)
     tags = TagListSerializerField(required=False)
     category = serializers.SlugRelatedField(read_only=True, slug_field='name')
+    is_like =  serializers.SerializerMethodField(read_only=True)
+    is_favorite =  serializers.SerializerMethodField(read_only=True)
+
 
     class Meta:
         model = Image
@@ -87,8 +92,21 @@ class ImageDetailSerializer(serializers.ModelSerializer):
 
         return instance
 
+    def get_is_like(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.users_like.filter(id=request.user.id).exists()
+        return False
+
     def get_views(self, obj):
         # Получаем количество просмотров из контекста
         return self.context.get('views', 0)
 
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        session_manager = FavoriteSessionManager(request)
+        favorites = session_manager.get_favorites()
+        if str(obj.id) in favorites:
+            return True
+        return False
 
