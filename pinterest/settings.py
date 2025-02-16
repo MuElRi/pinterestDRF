@@ -215,7 +215,7 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'sync-views': {
         'task': 'image.tasks.sync_views_to_db',
-        'schedule': 7600.0,
+        'schedule': 300.0,
     },
     'delete-action': {
         'task': 'action.tasks.delete_old_action',

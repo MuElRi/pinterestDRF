@@ -35,7 +35,10 @@ class FavoriteSessionManager:
         favorites = self.get_favorites()
         if image_id in favorites:
             favorites.remove(image_id)
-            self.session["favorite_images"] = favorites
+            if not favorites:
+                del self.session["favorite_images"]
+            else:
+                self.session["favorite_images"] = favorites
             self._save()
 
     def _save(self):

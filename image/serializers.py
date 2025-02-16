@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from taggit.models import Tag
 from taggit.serializers import TagListSerializerField
-
 from .favourites import FavoriteSessionManager
 from .models import Image, Comment, Category
 from user.common_serializers import CustomUserSerializer
@@ -40,6 +39,7 @@ class ImageSerializer(serializers.HyperlinkedModelSerializer):
     owner = serializers.StringRelatedField(read_only=True)
     tags = TagListSerializerField(required=False)
     category = serializers.SlugRelatedField(queryset=Category.objects.all(), slug_field='name')
+    views = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Image

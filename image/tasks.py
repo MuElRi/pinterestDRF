@@ -74,14 +74,16 @@ def generate_image_tags(self, image_id, image_url):
 def sync_views_to_db():
     """Сохраняет просмотры из Redis в БД"""
     keys = cache.keys("image:*:views")
+    # image_dict = {}
     for key in keys:
         image_id = key.split(":")[1]
         views = int(cache.get(key))
         image = Image.objects.get(id=image_id)
         image.views = views
         image.save()
+        # image_dict[f"{image.id}"] = views
+    # return {"Синхронизация завершена": image_dict}
     return "Синхронизация завершена"
-
 
 @signals.task_failure.connect
 def task_failure_handler(sender, task_id, exception, args, kwargs, traceback, einfo, **extras):
