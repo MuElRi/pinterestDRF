@@ -54,12 +54,13 @@ class ActionView(ListAPIView):
             verb__iexact='liked'
         )
 
-        # 4. Действия "posted": когда подписчики выкладывают фото.
-        # То есть, если пользователь, совершающий действие, входит в число подписчиков текущего пользователя,
+        # 4. Действия "posted": когда followings выкладывают фото.
+        # То есть, если пользователь, совершающий действие, входит в число пользователей на кого подписан
+        # текущий пользователь,
         # а действие имеет verb "posted" и target — изображение
-        follower_ids = self.request.user.followers.values_list('id', flat=True)
+        following_ids = self.request.user.followings.values_list('id', flat=True)
         q_post = Q(
-            user_id__in=list(follower_ids),
+            user_id__in=list(following_ids),
             verb__iexact='posted',
             target_ct=image_ct
         )
